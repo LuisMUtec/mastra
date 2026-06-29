@@ -141,7 +141,7 @@ describe('Observational Memory extracted metadata persistence', () => {
         workingMemory: {
           enabled: true,
           template: '# User Profile\n- Name:\n- Location:',
-          injectTools: false,
+          agentManaged: false,
         },
         observationalMemory: {
           enabled: true,
@@ -222,7 +222,7 @@ describe('Observational Memory extracted metadata persistence', () => {
             profile: z.object({ name: z.string().optional(), location: z.string().optional() }).optional(),
             preferences: z.array(z.string()).optional(),
           }),
-          injectTools: false,
+          agentManaged: false,
         },
         observationalMemory: {
           enabled: true,
