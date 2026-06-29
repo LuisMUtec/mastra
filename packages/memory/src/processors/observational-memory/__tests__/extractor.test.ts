@@ -5,7 +5,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { composeObservationExtractors, composeReflectionExtractors } from '../built-in-extractors';
-import { applyExtractorHooks } from '../extracted-values';
+import {
+  applyExtractorHooks,
+  buildThreadMetadataFromExtractedValues,
+  getPriorExtractedValues,
+} from '../extracted-values';
 import { extractStructuredValues } from '../extraction-runner';
 import {
   Extractor,
@@ -26,6 +30,7 @@ describe('Extractor', () => {
     expect(extractor.slug).toBe('project-status');
     expect(extractor.mode).toBe('inline');
     expect(extractor.includePreviousExtraction).toBe(true);
+    expect(extractor.metadataKeyPath).toBe('extracted.project-status');
     expect(extractor.schema.parse('active')).toBe('active');
   });
 
@@ -37,6 +42,39 @@ describe('Extractor', () => {
     });
 
     expect(extractor.mode).toBe('structured');
+  });
+
+  it('routes extracted values through string metadata key paths', () => {
+    const priority = new Extractor({
+      name: 'Priority',
+      instructions: 'Extract priority.',
+      metadataKeyPath: 'extracted.priority',
+    });
+    const title = new Extractor({
+      name: 'Title',
+      instructions: 'Extract title.',
+      metadataKeyPath: 'threadTitle',
+    });
+    const transient = new Extractor({
+      name: 'Transient',
+      instructions: 'Extract transient value.',
+      metadataKeyPath: false,
+    });
+
+    const metadata = buildThreadMetadataFromExtractedValues([priority, title, transient], {
+      priority: 'high',
+      title: 'Metadata Routing',
+      transient: 'marker-only',
+    });
+
+    expect(metadata).toEqual({
+      threadTitle: 'Metadata Routing',
+      extracted: { priority: 'high' },
+    });
+    expect(getPriorExtractedValues(metadata, [priority, title, transient])).toEqual({
+      priority: 'high',
+      title: 'Metadata Routing',
+    });
   });
 
   it('rejects empty, duplicate, and reserved slugs', () => {
@@ -217,6 +255,7 @@ describe('Extractor', () => {
       memoryConfig: undefined,
     });
     expect(result.values).toEqual({ 'working-memory': '# User\n- Existing fact\n- New fact' });
+    expect(buildThreadMetadataFromExtractedValues([resolved!], result.values)).toEqual({});
   });
 
   it('replaces JSON working memory from the working memory extractor', async () => {
@@ -256,6 +295,7 @@ describe('Extractor', () => {
       memoryConfig: undefined,
     });
     expect(result.values).toEqual({ 'working-memory': { location: 'Toronto' } });
+    expect(buildThreadMetadataFromExtractedValues([resolved!], result.values)).toEqual({});
   });
 
   it('skips JSON working memory updates when the extractor returns null', async () => {
